@@ -1,6 +1,6 @@
 executable(
     'srm-basic',
-    sources : ['main.cpp'],
+    sources : ['main.cpp','qrcodegen.cpp'],
     dependencies : [
         drm_headers_dep,
         srm_dep,

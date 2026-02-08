@@ -2,12 +2,21 @@
 
 #include <GLES2/gl2.h>
 #include "qrcodegen.hpp"
+#include <cassert>
 #include <iostream>
 #include <vector>
 
 using qrcodegen::QrCode;
 
 struct QrPaint{
+
+  static void check(){
+    if(glGetError() != GL_NO_ERROR){
+      std::cerr<<glGetError()<<std::endl;
+      assert(false);
+    }
+
+  }
 
 
   std::pair<std::vector<unsigned char>,int> qrFor(const std::string& message){
@@ -41,14 +50,16 @@ struct QrPaint{
     float unitSizeX = 1.0f / std::max(horiCount, vertCount);
     float unitSizeY = 1.0f / std::max(horiCount, vertCount);
 
+    //aspect  =1;
+
     if (aspect > 1.0f) {
         unitSizeX /= aspect; // Window is wider than tall
     } else {
         unitSizeY *= aspect; // Window is taller than wide
     }
 
-    const int xIdx = index % vertCount;
-    const int yIdx = index / vertCount;
+    const int xIdx = index % horiCount;
+    const int yIdx = (index / horiCount) % vertCount;
 
     float xcenter = unitSizeX * 2 *(xIdx + 0.5 - horiCount/2.0);
     float ycenter = unitSizeY * 2*(-yIdx - 0.5 + vertCount/2.0);
@@ -87,6 +98,30 @@ struct QrPaint{
   GLuint qrTexture;
   GLuint shaderProgram;
 
+
+
+  GLuint compileShader(GLenum type, const char* source) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    // Check for compilation errors
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE) {
+      GLint logLength;
+      glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+      std::vector<char> log(logLength);
+      glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+      std::cerr << "QrPaint Error: " << log.data() << std::endl;
+      glDeleteShader(shader);
+      return 0;
+    }
+    return shader;
+  }
+
+  GLuint createProgram() {
+
   const char* vShaderSrc = R"(
     attribute vec2 position;
     attribute vec2 texCoord;
@@ -110,27 +145,7 @@ const char* fShaderSrc = R"(
 
 
 
-  GLuint compileShader(GLenum type, const char* source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
 
-    // Check for compilation errors
-    GLint status;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-      GLint logLength;
-      glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
-      std::vector<char> log(logLength);
-      glGetShaderInfoLog(shader, logLength, nullptr, log.data());
-      std::cerr << "QrPaint Error: " << log.data() << std::endl;
-      glDeleteShader(shader);
-      return 0;
-    }
-    return shader;
-  }
-
-  GLuint createProgram(const char* vSource, const char* fSource) {
     GLuint vs = compileShader(GL_VERTEX_SHADER, vShaderSrc);
     GLuint fs = compileShader(GL_FRAGMENT_SHADER, fShaderSrc);
     shaderProgram = glCreateProgram();
@@ -158,17 +173,20 @@ const char* fShaderSrc = R"(
   }
 
   QrPaint(){
-    createProgram(vShaderSrc, fShaderSrc);
+    createProgram();
+    //check();
 
     posLoc = glGetAttribLocation(shaderProgram, "position");
     texLoc = glGetAttribLocation(shaderProgram, "texCoord");
 
+    //check();
     glGenBuffers(1, &vbo);
     glGenTextures(1, &qrTexture);
     glBindTexture(GL_TEXTURE_2D, qrTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+    //check();
   }
 
   ~QrPaint(){

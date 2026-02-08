@@ -15,6 +15,7 @@
 
 #include <SRMList.h>
 #include <SRMLog.h>
+#include "qr_paint.hpp"
 #include <memory>
 #include <stdio.h>
 
@@ -36,6 +37,8 @@ struct Timing{
   uint64_t counter = 0;
   double next_frame_display_time = 0;
   std::shared_ptr<QrPaint> qr_paint;
+  int windowWidth ;
+  int windowHeight;
 
   void update(){
     struct timespec ts;
@@ -86,6 +89,9 @@ static void initializeGL(SRMConnector *connector, void *userData)
 
   Timing *timing = (Timing*)userData;
 
+  timing->windowWidth = srmConnectorModeGetWidth(srmConnectorGetCurrentMode(connector));
+  timing->windowHeight = srmConnectorModeGetHeight(srmConnectorGetCurrentMode(connector));
+
   if(!timing->qr_paint){
     timing->qr_paint = std::make_shared<QrPaint>();
   }
@@ -106,19 +112,28 @@ static void initializeGL(SRMConnector *connector, void *userData)
 
 static void paintGL(SRMConnector *connector, void *userData)
 {
-    SRM_UNUSED(userData);
 
     glClearColor((sinf(color) + 1.f) / 2.f,
                  (sinf(color * 0.5f) + 1.f) / 2.f,
                  (sinf(color * 0.25f) + 1.f) / 2.f,
                  1.f);
 
-    color += 0.01f;
+    //color += 0.01f;
 
     if (color > M_PI*4.f)
         color = 0.f;
 
     glClear(GL_COLOR_BUFFER_BIT);
+    Timing *timing = (Timing*)userData;
+
+    //if(timing->counter > 1650){
+      std::string str = std::to_string(uint64_t(timing->next_frame_display_time));
+
+      timing->qr_paint->drawQRCode(str, timing->windowWidth, timing->windowHeight,timing->counter , 2,2);
+    //}
+
+
+    
     srmConnectorRepaint(connector);
 }
 
@@ -215,8 +230,8 @@ int main(void)
     }
 
     // Subscribe to Udev events
-    SRMListener *connectorPluggedEventListener = srmCoreAddConnectorPluggedEventListener(core, &connectorPluggedEventHandler, NULL);
-    SRMListener *connectorUnpluggedEventListener = srmCoreAddConnectorUnpluggedEventListener(core, &connectorUnpluggedEventHandler, NULL);
+    SRMListener *connectorPluggedEventListener = srmCoreAddConnectorPluggedEventListener(core, &connectorPluggedEventHandler, &timing);
+    SRMListener *connectorUnpluggedEventListener = srmCoreAddConnectorUnpluggedEventListener(core, &connectorUnpluggedEventHandler, &timing);
 
     // Find and initialize avaliable connectors
 
@@ -232,7 +247,7 @@ int main(void)
 
             if (srmConnectorIsConnected(connector))
             {
-                if (!srmConnectorInitialize(connector, &connectorInterface, NULL))
+                if (!srmConnectorInitialize(connector, &connectorInterface, &timing))
                     SRMError("[srm-basic] Failed to initialize connector %s.",
                              srmConnectorGetModel(connector));
             }
