@@ -1,6 +1,6 @@
 project(
     'SRM',
-    'c',
+    'c','cpp',
     version : run_command('cat', '../VERSION', check : false).stdout(),
     meson_version: '>= 0.59.0',
     default_options: [

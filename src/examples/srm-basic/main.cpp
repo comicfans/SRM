@@ -15,6 +15,7 @@
 
 #include <SRMList.h>
 #include <SRMLog.h>
+#include <stdio.h>
 
 #include <GLES2/gl2.h>
 
@@ -97,6 +98,17 @@ static void pageFlipped(SRMConnector *connector, void *userData)
 {
     SRM_UNUSED(connector);
     SRM_UNUSED(userData);
+  struct timespec ts;
+  struct tm *tm_info;
+  char buffer[64];
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    tm_info = localtime(&ts.tv_sec);
+
+    strftime(buffer, sizeof(buffer), "%S", tm_info);
+
+    printf("%s.%09ld\n", buffer, ts.tv_nsec );
 
     /* You must not do any drawing here as it won't make it to
      * the screen.
@@ -120,8 +132,8 @@ static SRMConnectorInterface connectorInterface =
 {
     .initializeGL = &initializeGL,
     .paintGL = &paintGL,
-    .resizeGL = &resizeGL,
     .pageFlipped = &pageFlipped,
+    .resizeGL = &resizeGL,
     .uninitializeGL = &uninitializeGL
 };
 
@@ -167,12 +179,12 @@ int main(void)
     // Loop each GPU (device)
     SRMListForeach (deviceIt, srmCoreGetDevices(core))
     {
-        SRMDevice *device = srmListItemGetData(deviceIt);
+        SRMDevice *device = (SRMDevice*)srmListItemGetData(deviceIt);
 
         // Loop each GPU connector (screen)
         SRMListForeach (connectorIt, srmDeviceGetConnectors(device))
         {
-            SRMConnector *connector = srmListItemGetData(connectorIt);
+            SRMConnector *connector = (SRMConnector*)srmListItemGetData((SRMListItem*)connectorIt);
 
             if (srmConnectorIsConnected(connector))
             {

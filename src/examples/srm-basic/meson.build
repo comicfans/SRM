@@ -1,6 +1,6 @@
 executable(
     'srm-basic',
-    sources : ['main.c'],
+    sources : ['main.cpp'],
     dependencies : [
         drm_headers_dep,
         srm_dep,
