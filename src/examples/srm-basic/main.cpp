@@ -15,6 +15,7 @@
 
 #include <SRMList.h>
 #include <SRMLog.h>
+#include <memory>
 #include <stdio.h>
 
 #include <GLES2/gl2.h>
@@ -22,8 +23,41 @@
 #include <math.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <vector>
 
 float color = 0.f;
+
+
+
+
+struct Timing{
+  timespec start_time = {0,0};
+  uint64_t total_elapsed_nsec = 0;
+  uint64_t counter = 0;
+  double next_frame_display_time = 0;
+  std::shared_ptr<QrPaint> qr_paint;
+
+  void update(){
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    if(start_time.tv_sec == 0 && start_time.tv_nsec == 0){
+      start_time = ts;
+      return;
+    }
+
+    auto elapsed_nsec = ts.tv_nsec - start_time.tv_nsec;
+    const auto minus = elapsed_nsec < 0;
+    const auto elapsed_sec = ts.tv_sec - start_time.tv_sec + minus;
+    elapsed_nsec = elapsed_nsec + (minus ? 1000000000 : 0);
+
+    total_elapsed_nsec = elapsed_sec * 1000000000 + elapsed_nsec;
+    ++counter;
+
+    next_frame_display_time = double(total_elapsed_nsec) * (counter+ 1)/ counter;
+  }
+};
+
 
 /* Opens a DRM device */
 static int openRestricted(const char *path, int flags, void *userData)
@@ -49,7 +83,12 @@ static SRMInterface srmInterface =
 
 static void initializeGL(SRMConnector *connector, void *userData)
 {
-    SRM_UNUSED(userData);
+
+  Timing *timing = (Timing*)userData;
+
+  if(!timing->qr_paint){
+    timing->qr_paint = std::make_shared<QrPaint>();
+  }
 
     /* You must not do any drawing here as it won't make it to
      * the screen. */
@@ -97,18 +136,14 @@ static void resizeGL(SRMConnector *connector, void *userData)
 static void pageFlipped(SRMConnector *connector, void *userData)
 {
     SRM_UNUSED(connector);
-    SRM_UNUSED(userData);
-  struct timespec ts;
-  struct tm *tm_info;
-  char buffer[64];
 
-    clock_gettime(CLOCK_REALTIME, &ts);
 
-    tm_info = localtime(&ts.tv_sec);
+    Timing *timing = (Timing*)userData;
 
-    strftime(buffer, sizeof(buffer), "%S", tm_info);
 
-    printf("%s.%09ld\n", buffer, ts.tv_nsec );
+    timing->update();
+    
+
 
     /* You must not do any drawing here as it won't make it to
      * the screen.
@@ -117,10 +152,14 @@ static void pageFlipped(SRMConnector *connector, void *userData)
      * Google v-sync for more info. */
 }
 
+
+
 static void uninitializeGL(SRMConnector *connector, void *userData)
 {
     SRM_UNUSED(connector);
-    SRM_UNUSED(userData);
+    Timing *timing= (Timing*)userData;
+
+    timing->qr_paint.reset();
 
     /* You must not do any drawing here as it won't make it to
      * the screen.
@@ -160,9 +199,14 @@ static void connectorUnpluggedEventHandler(SRMListener *listener, SRMConnector *
      * so calling srmConnectorUninitialize() here is not required. */
 }
 
+
+
 int main(void)
 {
-    SRMCore *core = srmCoreCreate(&srmInterface, NULL);
+
+    Timing timing;
+
+    SRMCore *core = srmCoreCreate(&srmInterface, &timing);
 
     if (!core)
     {
