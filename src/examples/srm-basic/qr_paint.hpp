@@ -22,33 +22,45 @@ struct QrPaint{
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
             pixels.push_back(qr.getModule(x, y) ? 0 : 255);
+            //std::cout<<(qr.getModule(x, y) ? black:white );
         }
+        //std::cout<<std::endl;
     }
 
     return {pixels, size};
   }
 
-  void drawQRCode(const std::string& message,float windowWidth, float windowHeight) {
+  void drawQRCode(const std::string& message,float windowWidth, float windowHeight,
+      const int index, const int horiCount, const int vertCount) {
 
     const auto [pixels,size] = qrFor(message);
 
     // Calculate aspect ratio to keep the QR code square
     float aspect = (float)windowWidth / (float)windowHeight;
-    float x = 0.7f;
-    float y = 0.7f;
+
+    float unitSizeX = 1.0f / std::max(horiCount, vertCount);
+    float unitSizeY = 1.0f / std::max(horiCount, vertCount);
 
     if (aspect > 1.0f) {
-        x /= aspect; // Window is wider than tall
+        unitSizeX /= aspect; // Window is wider than tall
     } else {
-        y *= aspect; // Window is taller than wide
+        unitSizeY *= aspect; // Window is taller than wide
     }
+
+    const int xIdx = index % vertCount;
+    const int yIdx = index / vertCount;
+
+    float xcenter = unitSizeX * 2 *(xIdx + 0.5 - horiCount/2.0);
+    float ycenter = unitSizeY * 2*(-yIdx - 0.5 + vertCount/2.0);
+
+    const float scale = 0.8;
 
     // Dynamic vertex data based on current aspect ratio
     float vertices[] = {
-        -x,  y,  0.0f, 0.0f,
-        -x, -y,  0.0f, 1.0f,
-         x,  y,  1.0f, 0.0f,
-         x, -y,  1.0f, 1.0f
+        xcenter-unitSizeX * scale,  ycenter + unitSizeY * scale,  0.0f, 0.0f,
+        xcenter-unitSizeX * scale, ycenter-unitSizeY * scale,  0.0f, 1.0f,
+        xcenter+ unitSizeX * scale, ycenter + unitSizeY * scale,  1.0f, 0.0f,
+        xcenter+ unitSizeX * scale, ycenter - unitSizeY * scale,  1.0f, 1.0f
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);

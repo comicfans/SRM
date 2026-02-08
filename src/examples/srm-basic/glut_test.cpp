@@ -31,7 +31,8 @@ void reshape(int w, int h) {
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    ptr->drawQRCode("https://www.google.com", windowWidth, windowHeight);
+    ptr->drawQRCode("https://www.google.com", windowWidth, windowHeight,0, 2,2);
+    ptr->drawQRCode("https://www.google.com", windowWidth, windowHeight,3, 2,2);
 
     glutSwapBuffers();
 }
